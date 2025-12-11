@@ -1,0 +1,67 @@
+# --- Qt Creator User Settings ---
+build/
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+CMakeLists.txt.user
+
+# --- Qt Generated Code (MOC, UI, Resources) ---
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+qmake_qmake_immediate.qrc
+.qmake.stash
+
+# --- Build Directories ---
+*build-*
+debug/
+release/
+obj/
+bin/
+
+# --- Compiled Object Files & Libraries ---
+*.o
+*.obj
+*.slo
+*.lo
+*.a
+*.lib
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# --- Executables ---
+*.exe
+*.out
+*.app
+
+# --- Debug Files (Windows) ---
+*.pdb
+*.idb
+*.ilk
+*.exp
+
+# --- OS Specific Garbage ---
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Editors ---
+.vscode/
+.idea/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
