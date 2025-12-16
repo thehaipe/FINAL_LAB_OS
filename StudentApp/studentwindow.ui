@@ -38,7 +38,7 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QLineEdit" name="lnIdea">
+        <widget class="QLineEdit" name="IdeaInLineEdit">
          <property name="placeholderText">
           <string>Введіть вашу геніальну ідею...</string>
          </property>
@@ -64,7 +64,7 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
-        <widget class="QListWidget" name="listCandidates">
+        <widget class="QListWidget" name="CandidatesListWidget">
          <property name="selectionMode">
           <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
          </property>
