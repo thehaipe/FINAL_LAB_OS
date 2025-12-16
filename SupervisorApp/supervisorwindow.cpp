@@ -1,14 +1,191 @@
 #include "supervisorwindow.h"
 #include "ui_supervisorwindow.h"
 
+#include <new> 
+
 SupervisorWindow::SupervisorWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::SupervisorWindow)
+    , timeRemaining(180) 
 {
     ui->setupUi(this);
+    
+    initIPC();
+    
+    //Таймер оновлення інтерфейсу (кожні 500 мс)
+    updateTimer = new QTimer(this);
+    connect(updateTimer, &QTimer::timeout, this, &SupervisorWindow::onUpdateTimerTick);
+    updateTimer->start(500);
+    
+    //Таймер відліку часу гри (щосекунди)
+    gameTimer = new QTimer(this);
+    connect(gameTimer, &QTimer::timeout, this, &SupervisorWindow::onGameTimerTick);
+    gameTimer->start(1000);
+    
+    ui->lblStatus->setText("Етап 1: Генерація ідей");
 }
 
 SupervisorWindow::~SupervisorWindow()
 {
+    cleanupIPC();
     delete ui;
+}
+
+void SupervisorWindow::initIPC()
+{
+    // Створення семафора. 
+    // Початкове значення 1 (вільно). Якщо існує — просто підключитись.
+    semaphore = new QSystemSemaphore(SEMAPHORE_KEY, 1, QSystemSemaphore::Create);
+    
+    sharedMem = new QSharedMemory(SHARED_MEMORY_KEY);
+    
+    // Спроба створити нову
+    if (!sharedMem->create(sizeof(SharedBoard))) {
+        if (sharedMem->error() == QSharedMemory::AlreadyExists) {
+            sharedMem->attach();
+            sharedMem->detach(); // 
+            if (!sharedMem->create(sizeof(SharedBoard))) {
+                QMessageBox::critical(this, "Помилка", "Не вдалося створити Shared Memory!");
+                return;
+            }
+        } else {
+            QMessageBox::critical(this, "Помилка", sharedMem->errorString());
+            return;
+        }
+    }
+    
+    // Блокуємо доступ, щоб ніхто не вліз під час створення
+    semaphore->acquire();
+    
+    SharedBoard *board = (SharedBoard*)sharedMem->data();
+    // Placement new: створюємо об'єкт прямо в виділеній спільній пам'яті
+    new (board) SharedBoard(); 
+    
+    semaphore->release();
+}
+
+void SupervisorWindow::cleanupIPC()
+{
+    if (sharedMem->isAttached()) {
+        semaphore->acquire();
+        SharedBoard *board = (SharedBoard*)sharedMem->data();
+        board->isFinished = true; // Сигнал студентам виходити
+        semaphore->release();
+        
+        sharedMem->detach();
+    }
+    delete sharedMem;
+    delete semaphore;
+}
+
+void SupervisorWindow::onGameTimerTick()
+{
+    if (timeRemaining > 0) {
+        timeRemaining--;
+        
+        int min = timeRemaining / 60;
+        int sec = timeRemaining % 60;
+        ui->lblTimer->setText(QString("Час: %1:%2")
+                                  .arg(min, 2, 10, QChar('0'))
+                                  .arg(sec, 2, 10, QChar('0')));
+    } else {
+        gameTimer->stop();
+        on_btnFinish_clicked();
+    }
+}
+
+void SupervisorWindow::onUpdateTimerTick()
+{
+    // Щоб прочитати дані, ОБОВ'ЯЗКОВО ВЗЯТИ СЕМАФОР ГАЙЗ 
+    if (!sharedMem->isAttached()) return;
+    
+    semaphore->acquire(); // <--- LOCK IN
+    SharedBoard *board = (SharedBoard*)sharedMem->data();
+    ui->listIdeas->clear();
+    for (int i = 0; i < board->ideaCount; i++) {
+        QString itemText = QString("#%1 (Stud %2): %3 [Голосів: %4]")
+                               .arg(board->ideas[i].id)
+                               .arg(board->ideas[i].studentPid)
+                               .arg(board->ideas[i].text)
+                               .arg(board->ideas[i].votes);
+        
+        ui->listIdeas->addItem(itemText);
+    }
+    
+    // Якщо йде голосування — оновлюємо статус
+    if (board->isVotingStarted && !board->isFinished) {
+        ui->lblStatus->setText("Етап 2: Триває голосування...");
+    }
+    
+    semaphore->release(); // RELEASE SEMAPH
+}
+
+void SupervisorWindow::on_btnFinish_clicked()
+{
+    // Ця кнопка працює як перемикач етапів
+    if (!sharedMem->isAttached()) return;
+    
+    semaphore->acquire();
+    SharedBoard *board = (SharedBoard*)sharedMem->data();
+    
+    if (!board->isVotingStarted) {
+        // 1. Завершити генерацію, почати голосування
+        board->isVotingStarted = true;
+        ui->lblStatus->setText("Голосування розпочато!");
+        ui->btnFinish->setText("Підбити підсумки (Завершити)");
+        gameTimer->stop(); // Якщо натиснули раніше таймера
+    } else {
+        // 2. Завершити все
+        board->isFinished = true;
+        updateTimer->stop(); // Перестаємо оновлювати
+        showResults();       // Показуємо алерт з переможцями
+        ui->btnFinish->setEnabled(false);
+    }
+    
+    semaphore->release();
+}
+
+void SupervisorWindow::showResults()
+{
+    // Функція викликається вже під семафором або коли таймер зупинено,
+    // але для безпеки краще читати локальну копію, якщо ми вже detach.
+    // Тут ми просто читаємо поточний стан пам'яті (семафор відпущений в btnClick, 
+    // тому тут треба взяти знову, якщо це окремий виклик).
+    
+    semaphore->acquire();
+    SharedBoard *board = (SharedBoard*)sharedMem->data();
+    
+    // Сортування бульбашкою (просто і надійно для масиву структур)
+    // Шукаємо топ-3
+    // Для простоти просто пройдемось і знайдемо макс.
+    
+    QString resultText = "Найкращі ідеї:\n";
+    
+    // Створюємо тимчасовий масив індексів для сортування
+    struct IdeaIdx { int idx; int votes; };
+    QList<IdeaIdx> sorted;
+    for(int i=0; i < board->ideaCount; ++i) {
+        sorted.append({i, board->ideas[i].votes});
+    }
+    
+    // Сортуємо лямбдою
+    std::sort(sorted.begin(), sorted.end(), [](const IdeaIdx &a, const IdeaIdx &b){
+        return a.votes > b.votes; 
+    });
+    
+    int top = qMin(3, (int)sorted.size());
+    for(int i=0; i<top; ++i) {
+        int originalIndex = sorted[i].idx;
+        resultText += QString("%1. %2 (Голосів: %3)\n")
+                          .arg(i+1)
+                          .arg(board->ideas[originalIndex].text)
+                          .arg(board->ideas[originalIndex].votes);
+        
+        // Записуємо ID переможців назад в структуру (як вимагає завдання)
+        board->bestIdeaIds[i] = board->ideas[originalIndex].id;
+    }
+    
+    semaphore->release();
+    
+    QMessageBox::information(this, "Результати сесії", resultText);
 }
