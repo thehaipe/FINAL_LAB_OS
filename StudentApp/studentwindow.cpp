@@ -12,3 +12,9 @@ StudentWindow::~StudentWindow()
 {
     delete ui;
 }
+
+void StudentWindow::on_btnSubmit_clicked()
+{
+
+}
+
