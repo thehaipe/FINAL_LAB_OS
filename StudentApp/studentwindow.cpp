@@ -6,12 +6,43 @@ StudentWindow::StudentWindow(QWidget *parent)
     , ui(new Ui::StudentWindow)
 {
     ui->setupUi(this);
+    ui->CandidatesListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    // 1. Ініціалізація IPC об'єктів
+    sharedMem = new QSharedMemory(SHARED_MEMORY_KEY);
+
+    // 2. Ініціалізація логіки
+    myPid = QCoreApplication::applicationPid();
+    ui->lblStatus->setText(QString("PID: %1. Очікування підключення...").arg(myPid));
+    ui->btnVote->setEnabled(false);
 }
 
 StudentWindow::~StudentWindow()
 {
+    if (sharedMem->isAttached()) {
+        sharedMem->detach();
+    }
+    delete sharedMem;
     delete ui;
 }
+bool StudentWindow::connectToIPC()
+{
+    if (isConnected) return true;
+
+    // Спроба підключення до спільної пам'яті
+    if (!sharedMem->isAttached()) {
+        if (!sharedMem->attach()) {
+            qDebug() << "Не вдалося підключитися до Shared Memory:" << sharedMem->errorString();
+            return false;
+        }
+    }
+
+    isConnected = true;
+    ui->lblStatus->setText(QString("PID: %1. Підключено. Етап 1: Генерація ідей.").arg(myPid));
+    return true;
+}
+
+
+
 
 void StudentWindow::on_btnSubmit_clicked()
 {
