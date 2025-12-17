@@ -30,6 +30,7 @@ private slots:
     void on_btnSubmit_clicked(); // Натискання "Відправити ідею"
     void on_btnVote_clicked();   // Натискання "Проголосувати"
     void onMonitorTick();        // Таймер: перевірка стану "Дошки"
+    void on_CandidatesListWidget_itemSelectionChanged();
 
 private:
     Ui::StudentWindow *ui;

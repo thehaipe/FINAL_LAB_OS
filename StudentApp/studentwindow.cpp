@@ -139,3 +139,15 @@ void StudentWindow::on_btnSubmit_clicked()
     }
 }
 
+void StudentWindow::on_CandidatesListWidget_itemSelectionChanged(){
+    QList<QListWidgetItem*> selected = ui->CandidatesListWidget->selectedItems();
+    const int MAX_VOTES = 3;
+    if (selected.size() > MAX_VOTES) {
+        QMessageBox::warning(this, "Обмеження вибору",
+                             QString("Ви можете вибрати не більше %1 ідей.").arg(MAX_VOTES));
+        for (int i = MAX_VOTES; i < selected.size(); i++) {
+            selected.at(i)->setSelected(false);
+        }
+    }
+}
+
