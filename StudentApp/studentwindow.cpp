@@ -65,6 +65,7 @@ void StudentWindow::switchToVotingMode()
 
     if (!hasVoted) {
         ui->groupVoting->setEnabled(true);
+        ui->btnVote->setEnabled(true);
         hasVoted = true;
     }
 }
@@ -99,7 +100,6 @@ void StudentWindow::onMonitorTick()
     // 2. Відпустити семафор
     semaphore->release();
 }
-
 
 void StudentWindow::loadCandidatesList(SharedBoard *board)
 {
