@@ -131,7 +131,7 @@ void SupervisorWindow::on_btnFinish_clicked()
     if (!board->isVotingStarted) {
         // 1. Завершити генерацію, почати голосування
         board->isVotingStarted = true;
-
+        ui->lblTimer->setText("00:00");
         ui->lblStatus->setText("Голосування розпочато!");
         ui->btnFinish->setText("Підбити підсумки (Завершити)");
         gameTimer->stop(); // Якщо натиснули раніше таймера
@@ -180,5 +180,6 @@ void SupervisorWindow::showResults()
         board->bestIdeaIds[i] = board->ideas[originalIndex].id;
     }
 
+    ui->lblStatus->setText("Завершено");
     QMessageBox::information(this, "Результати сесії", resultText);
 }
