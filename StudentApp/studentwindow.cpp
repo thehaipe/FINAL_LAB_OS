@@ -92,6 +92,16 @@ void StudentWindow::onMonitorTick()
 }
 
 
+void StudentWindow::loadCandidatesList(SharedBoard *board)
+{
+    ui->CandidatesListWidget->clear();
+    for(int i = 0; i < board->ideaCount; ++i) {
+        ui->CandidatesListWidget->addItem(QString("#%1: %2")
+                                              .arg(board->ideas[i].id)
+                                              .arg(board->ideas[i].text));
+    }
+}
+
 void StudentWindow::on_btnSubmit_clicked()
 {
     if (!hasSubmitted){
