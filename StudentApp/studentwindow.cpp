@@ -15,6 +15,7 @@ StudentWindow::StudentWindow(QWidget *parent)
     myPid = QCoreApplication::applicationPid();
     ui->lblStatus->setText(QString("PID: %1. Очікування підключення...").arg(myPid));
     ui->btnVote->setEnabled(false);
+    isConnected = false;
 
     // 3. Встановлення таймера моніторингу
     monitorTimer = new QTimer(this);
@@ -41,6 +42,12 @@ bool StudentWindow::connectToIPC()
             qDebug() << "Не вдалося підключитися до Shared Memory:" << sharedMem->errorString();
             return false;
         }
+    }
+    if (semaphore->acquire()) {
+        semaphore->release();
+    } else {
+        sharedMem->detach();
+        return false;
     }
 
     isConnected = true;
@@ -70,7 +77,7 @@ void StudentWindow::onMonitorTick()
     // 1. Взяти семафор для безпечного читання
     if (!semaphore->acquire()) return;
 
-    SharedBoard *boaЧЯrd = (SharedBoard*)sharedMem->data();
+    SharedBoard * board = (SharedBoard*)sharedMem->data();
 
     if (board) {
         // Перевірка стану гри
@@ -90,7 +97,6 @@ void StudentWindow::onMonitorTick()
     // 2. Відпустити семафор
     semaphore->release();
 }
-
 
 void StudentWindow::loadCandidatesList(SharedBoard *board)
 {
@@ -177,7 +183,7 @@ void StudentWindow::on_btnVote_clicked()
     }
 
     // 2. Блокуємо доступ до спільної пам'яті
-    semaphore->acquire(); // <--- Встановлення семафора
+    semaphore->acquire();
     SharedBoard *board = (SharedBoard*)sharedMem->data();
 
     // 3. Перевірка: чи голосування вже почалося?
@@ -208,7 +214,7 @@ void StudentWindow::on_btnVote_clicked()
     }
 
     // 5. Знімаємо блокування
-    semaphore->release(); // <--- Зняття семафора
+    semaphore->release();
 
     // 6. Повідомлення про результат
     if (successfulVotes > 0) {
