@@ -65,7 +65,6 @@ void StudentWindow::switchToVotingMode()
 
     if (!hasVoted) {
         ui->groupVoting->setEnabled(true);
-        ui->btnVote->setEnabled(true);
         hasVoted = true;
     }
 }
