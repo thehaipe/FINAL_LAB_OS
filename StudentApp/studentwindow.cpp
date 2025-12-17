@@ -9,11 +9,18 @@ StudentWindow::StudentWindow(QWidget *parent)
     ui->CandidatesListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     // 1. Ініціалізація IPC об'єктів
     sharedMem = new QSharedMemory(SHARED_MEMORY_KEY);
+    semaphore = new QSystemSemaphore(SEMAPHORE_KEY);
 
     // 2. Ініціалізація логіки
     myPid = QCoreApplication::applicationPid();
     ui->lblStatus->setText(QString("PID: %1. Очікування підключення...").arg(myPid));
     ui->btnVote->setEnabled(false);
+
+    // 3. Встановлення таймера моніторингу
+    monitorTimer = new QTimer(this);
+    connect(monitorTimer, &QTimer::timeout, this, &StudentWindow::onMonitorTick);
+    // Починаємо моніторинг: спершу з швидкої спроби підключення
+    monitorTimer->start(100);
 }
 
 StudentWindow::~StudentWindow()
@@ -52,6 +59,38 @@ void StudentWindow::switchToVotingMode()
         ui->btnVote->setEnabled(true);
     }
 }
+void StudentWindow::onMonitorTick()
+{
+    // Спершу перевіряємо підключення
+    if (!connectToIPC()) {
+        ui->lblStatus->setText(QString("PID: %1. Очікування підключення...").arg(myPid));
+        return;
+    }
+
+    // 1. Взяти семафор для безпечного читання
+    if (!semaphore->acquire()) return;
+
+    SharedBoard *boaЧЯrd = (SharedBoard*)sharedMem->data();
+
+    if (board) {
+        // Перевірка стану гри
+        if (board->isFinished) {
+            monitorTimer->stop();
+            ui->lblStatus->setText("Сесія завершена. Переможці визначені.");
+            ui->btnSubmit->setEnabled(false);
+            ui->btnVote->setEnabled(false);
+        }
+        else if (board->isVotingStarted) {
+            monitorTimer->stop(); // Зупиняємо моніторинг і переходимо в режим голосування
+            switchToVotingMode();
+            loadCandidatesList(board);
+        }
+    }
+
+    // 2. Відпустити семафор
+    semaphore->release();
+}
+
 
 void StudentWindow::on_btnSubmit_clicked()
 {
