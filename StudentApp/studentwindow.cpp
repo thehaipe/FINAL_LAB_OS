@@ -138,6 +138,72 @@ void StudentWindow::on_btnSubmit_clicked()
         QMessageBox::warning(this, tr("Помилка"), tr("Ідея вже була відправлена"));
     }
 }
+void StudentWindow::on_btnVote_clicked()
+{
+    if (!sharedMem->isAttached()) {
+        QMessageBox::warning(this, "Помилка", "Не підключено до спільної пам'яті.");
+        return;
+    }
+
+    // 1. Отримати список ВИБРАНИХ елементів
+    QList<QListWidgetItem*> selectedItems = ui->CandidatesListWidget->selectedItems();
+    int voteCount = selectedItems.size();
+
+    // Перевірка, чи щось вибрано
+    if (voteCount == 0) {
+        QMessageBox::information(this, "Помилка", "Будь ласка, виберіть принаймні одну ідею для голосування.");
+        return;
+    }
+
+    // 2. Блокуємо доступ до спільної пам'яті
+    semaphore->acquire(); // <--- Встановлення семафора
+    SharedBoard *board = (SharedBoard*)sharedMem->data();
+
+    // 3. Перевірка: чи голосування вже почалося?
+    if (!board->isVotingStarted) {
+        QMessageBox::information(this, "Помилка", "Генерація ідей ще триває. Голосування неможливе.");
+        semaphore->release();
+        return;
+    }
+
+    int successfulVotes = 0;
+
+    // 4. Перебираємо УСІ вибрані елементи
+    for (QListWidgetItem* selectedItem : selectedItems)
+    {
+        // 4a. Витягуємо ID ідеї з поля Qt::UserRole елемента списку
+        int ideaIdToVote = selectedItem->data(Qt::UserRole).toInt();
+
+        // 4b. Перебираємо ідеї у спільній пам'яті та шукаємо відповідний ID
+        for (int i = 0; i < board->ideaCount; i++) {
+            if (board->ideas[i].id == ideaIdToVote) {
+
+                // *** ОСНОВНА ЗМІНА: Збільшення голосу для кожного вибраного елемента ***
+                board->ideas[i].votes++;
+                successfulVotes++;
+                break; // Знайшли, переходимо до наступного вибраного елемента
+            }
+        }
+    }
+
+    // 5. Знімаємо блокування
+    semaphore->release(); // <--- Зняття семафора
+
+    // 6. Повідомлення про результат
+    if (successfulVotes > 0) {
+        QMessageBox::information(this, "Успіх",
+                                 QString("Ваш голос зараховано! Ви проголосували за %1 ідею(ї).").arg(successfulVotes));
+
+        // Опціонально: Після голосування можна скинути вибір,
+        // щоб студент не проголосував двічі, випадково натиснувши кнопку знову.
+        for (QListWidgetItem* item : selectedItems) {
+            item->setSelected(false);
+        }
+
+    } else {
+        QMessageBox::critical(this, "Помилка", "Не вдалося знайти жодної вибраної ідеї для голосування.");
+    }
+}
 
 void StudentWindow::on_CandidatesListWidget_itemSelectionChanged(){
     QList<QListWidgetItem*> selected = ui->CandidatesListWidget->selectedItems();
