@@ -98,7 +98,6 @@ void StudentWindow::onMonitorTick()
     semaphore->release();
 }
 
-
 void StudentWindow::loadCandidatesList(SharedBoard *board)
 {
     ui->CandidatesListWidget->clear();
