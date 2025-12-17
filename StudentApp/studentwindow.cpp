@@ -16,6 +16,8 @@ StudentWindow::StudentWindow(QWidget *parent)
     ui->lblStatus->setText(QString("PID: %1. Очікування підключення...").arg(myPid));
     ui->btnVote->setEnabled(false);
     isConnected = false;
+    hasVoted = false;
+    hasSubmitted = false;
 
     // 3. Встановлення таймера моніторингу
     monitorTimer = new QTimer(this);
@@ -61,9 +63,10 @@ void StudentWindow::switchToVotingMode()
     ui->btnSubmit->setEnabled(false);
     ui->IdeaInLineEdit->setEnabled(false);
 
-    // Якщо студент вже голосував, кнопка залишається вимкненою
     if (!hasVoted) {
+        ui->groupVoting->setEnabled(true);
         ui->btnVote->setEnabled(true);
+        hasVoted = true;
     }
 }
 void StudentWindow::onMonitorTick()
