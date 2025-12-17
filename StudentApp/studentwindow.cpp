@@ -48,6 +48,17 @@ bool StudentWindow::connectToIPC()
     return true;
 }
 
+void StudentWindow::switchToVotingMode()
+{
+    ui->lblStatus->setText(QString("PID: %1. Етап 2: Голосування.").arg(myPid));
+    ui->btnSubmit->setEnabled(false);
+    ui->IdeaInLineEdit->setEnabled(false);
+
+    // Якщо студент вже голосував, кнопка залишається вимкненою
+    if (!hasVoted) {
+        ui->btnVote->setEnabled(true);
+    }
+}
 void StudentWindow::onMonitorTick()
 {
     // Спершу перевіряємо підключення
@@ -59,7 +70,7 @@ void StudentWindow::onMonitorTick()
     // 1. Взяти семафор для безпечного читання
     if (!semaphore->acquire()) return;
 
-    SharedBoard *board = (SharedBoard*)sharedMem->data();
+    SharedBoard *boaЧЯrd = (SharedBoard*)sharedMem->data();
 
     if (board) {
         // Перевірка стану гри
